@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дилерская сеть · еженедельная сводка</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#EEF0F3;
+    --panel:#FCFDFE;
+    --ink:#182029;
+    --slate:#55677C;
+    --line:#D6DBE1;
+    --steel:#1F6A8C;
+    --sage:#4E7A5C;
+    --plum:#6B4E71;
+    --amber:#B8791F;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font:400 15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-variant-numeric:tabular-nums;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 24px 72px}
+
+  header{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:28px}
+  h1{
+    font:400 34px/1.15 Georgia,"Times New Roman",serif;
+    letter-spacing:-.01em;margin:0 0 6px;
+  }
+  header p{margin:0;color:var(--slate);font-size:14px}
+
+  .hero{margin-bottom:34px}
+  .hero .frame{height:340px;position:relative}
+
+  .strip{
+    display:grid;grid-template-columns:repeat(5,1fr);
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    margin:0 0 34px;
+  }
+  .stat{padding:16px 18px 14px;border-right:1px solid var(--line)}
+  .stat:last-child{border-right:0}
+  .stat b{display:block;font:400 28px/1 Georgia,serif}
+  .stat span{display:block;font-size:13px;color:var(--slate);margin-top:6px}
+  .stat i{font-style:normal;font-size:12px;color:var(--slate)}
+  .up{color:var(--sage)} .down{color:var(--amber)}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:2px;
+    padding:18px 20px 20px;
+  }
+  .panel h2{font:600 14px/1.3 inherit;margin:0 0 2px}
+  .panel p.sub{margin:0 0 16px;font-size:13px;color:var(--slate)}
+  .panel .frame{height:230px;position:relative}
+  .rule{height:3px;margin:-19px -21px 16px;border-radius:2px 2px 0 0}
+
+  /* запас ключей — сетка точек */
+  .keys{display:flex;gap:6px;align-items:flex-end;height:230px;padding-top:8px}
+  .keycol{flex:1;display:flex;flex-direction:column-reverse;gap:4px;align-items:center}
+  .dot{width:11px;height:11px;border-radius:50%;border:1px solid var(--line)}
+  .dot.on{background:var(--amber);border-color:var(--amber)}
+  .keycol em{font-style:normal;font-size:10px;color:var(--slate);margin-top:6px;
+    writing-mode:vertical-rl;transform:rotate(180deg)}
+
+  table{width:100%;border-collapse:collapse;margin-top:34px;font-size:13px}
+  caption{text-align:left;font:600 14px/1.3 inherit;padding-bottom:10px}
+  th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--slate);font-weight:500;border-bottom:1px solid var(--ink)}
+  tbody tr:hover{background:#E7EAEE}
+
+  .note{
+    margin-top:26px;padding-left:14px;border-left:3px solid var(--amber);
+    font-size:13px;color:var(--slate);max-width:70ch;
+  }
+  .note strong{color:var(--ink);font-weight:600}
+
+  @media (max-width:760px){
+    .wrap{padding:28px 16px 48px}
+    h1{font-size:26px}
+    .grid{grid-template-columns:1fr}
+    .strip{grid-template-columns:1fr 1fr}
+    .stat{border-bottom:1px solid var(--line)}
+    .keys{gap:3px}.dot{width:8px;height:8px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Дилерская сеть: 14 недель</h1>
+    <p id="period"></p>
+  </header>
+
+  <section class="hero">
+    <div class="frame"><canvas id="kp"></canvas></div>
+  </section>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="rule" style="background:var(--sage)"></div>
+      <h2>Салоны</h2>
+      <p class="sub">Подключены к Эларбис и из них оформляют КП</p>
+      <div class="frame"><canvas id="salons"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="rule" style="background:var(--plum)"></div>
+      <h2>Регистрации в личном кабинете</h2>
+      <p class="sub">Накопленное число по дилерам</p>
+      <div class="frame"><canvas id="lk"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="rule" style="background:var(--amber)"></div>
+      <h2>Запас свободных ключей</h2>
+      <p class="sub">Один кружок — один нераспределённый ключ</p>
+      <div class="keys" id="keys"></div>
+    </div>
+
+    <div class="panel">
+      <div class="rule" style="background:var(--steel)"></div>
+      <h2>Доля салонов, оформляющих КП</h2>
+      <p class="sub">От числа салонов, подключённых к Эларбис</p>
+      <div class="frame"><canvas id="share"></canvas></div>
+    </div>
+  </div>
+
+  <table id="table">
+    <caption>Все срезы</caption>
+  </table>
+
+  <p class="note" id="note"></p>
+
+</div>
+
+<script id="raw" type="text/plain">
+1) Салонов с Эларбис - 64 штук
+2) Салонов с оформлением Коммерческих предложений - 30 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 11 штук
+5) Количество регистраций в ЛК по дилерам - 133 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 800
+2) За прошлую неделю (01.06 - 09.06) - 77
+
+#
+
+1) Салонов с Эларбис - 65 штук
+2) Салонов с оформлением Коммерческих предложений - 31 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 10 штук
+5) Количество регистраций в ЛК по дилерам - 138 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 837
+2) За прошлую неделю (09.06 - 15.06) - 37
+
+#
+
+1) Салонов с Эларбис - 67 штук
+2) Салонов с оформлением Коммерческих предложений - 31 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 7 штук
+5) Количество регистраций в ЛК по дилерам - 142 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 863
+2) За прошлую неделю (15.06 - 23.06) - 27
+
+#
+
+1) Салонов с Эларбис - 69 штук
+2) Салонов с оформлением Коммерческих предложений - 31 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 6 штук
+5) Количество регистраций в ЛК по дилерам - 143 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 911
+2) За прошлую неделю (23.06 - 30.06) - 48
+
+#
+
+1) Салонов с Эларбис - 69 штук
+2) Салонов с оформлением Коммерческих предложений - 31 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 6 штук
+5) Количество регистраций в ЛК по дилерам - 143 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 937
+2) За прошлую неделю (30.06 - 07.007) - 26
+
+#
+
+1) Салонов с Эларбис - 70 штук
+2) Салонов с оформлением Коммерческих предложений - 31 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 5 штук
+5) Количество регистраций в ЛК по дилерам - 143 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 983
+2) За прошлую неделю (07.07 - 14.07) - 46
+
+#
+
+1) Салонов с Эларбис - 70 штук
+2) Салонов с оформлением Коммерческих предложений - 34 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 5 штук
+5) Количество регистраций в ЛК по дилерам - 145 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 992
+2) За прошлую неделю (14.07 - 21.07) - 9
+
+#
+
+1) Салонов с Эларбис - 70 штук
+2) Салонов с оформлением Коммерческих предложений - 36 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 5 штук
+5) Количество регистраций в ЛК по дилерам - 145 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 1032
+2) За прошлую неделю (21.07 - 28.07) - 33
+#
+
+1) Салонов с Эларбис - 73 штук
+2) Салонов с оформлением Коммерческих предложений - 36 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 3 штук
+5) Количество регистраций в ЛК по дилерам - 145 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 1074
+2) За прошлую неделю (28.07 - 04.08) - 42
+
+#
+
+1) Салонов с Эларбис - 73 штук
+2) Салонов с оформлением Коммерческих предложений - 37 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 3 штук
+5) Количество регистраций в ЛК по дилерам - 148 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 1083
+2) За прошлую неделю (04.08 - 11.08) - 9
+
+#
+
+1) Салонов с Эларбис - 73 штук
+2) Салонов с оформлением Коммерческих предложений - 40 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 3 штук
+5) Количество регистраций в ЛК по дилерам - 149 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 1110
+2) За прошлую неделю (11.08 - 18.08) - 27
+
+#
+
+1) Салонов с Эларбис - 75 штук
+2) Салонов с оформлением Коммерческих предложений - 42 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 1 штука
+5) Количество регистраций в ЛК по дилерам - 152 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 1142
+2) За прошлую неделю (18.08 - 25.08) - 32
+
+#
+
+1) Салонов с Эларбис - 75 штук
+2) Салонов с оформлением Коммерческих предложений - 42 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 1 штука
+5) Количество регистраций в ЛК по дилерам - 155 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 1160
+2) За прошлую неделю (25.08 - 01.09) - 18
+
+#
+
+
+1) Салонов с Эларбис - 75 штук
+2) Салонов с оформлением Коммерческих предложений - 42 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 1 штука
+5) Количество регистраций в ЛК по дилерам - 156 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 1179
+2) За прошлую неделю (01.09 - 08.09) - 19
+</script>
+
+<script>
+/* ---------- 1. Разбор исходного текста ---------- */
+
+const num = (block, re) => {
+  const m = block.match(re);
+  return m ? Number(m[1]) : null;
+};
+
+const parse = (text) => text
+  .split('#')
+  .map(b => b.trim())
+  .filter(b => b.length)
+  .map(b => {
+    const week = b.match(/За прошлую неделю\s*\(([^)]+)\)\s*-\s*(\d+)/);
+    const range = week ? week[1].replace(/(\d{2})\.0*(\d{1,2})/g, (_, d, mo) =>
+      d + '.' + String(mo).padStart(2, '0')) : '';
+    return {
+      range,
+      label: range.split('-').pop().trim(),
+      elarbis:  num(b, /Эларбис\s*-\s*(\d+)/),
+      withKp:   num(b, /Коммерческих предложений\s*-\s*(\d+)/),
+      factory:  num(b, /Фабричных регистраций\s*-\s*(\d+)/),
+      keys:     num(b, /Свободных ключей\s*-\s*(\d+)/),
+      lk:       num(b, /ЛК по дилерам\s*-\s*(\d+)/),
+      kpTotal:  num(b, /всего за весь период\s*-\s*(\d+)/),
+      kpWeek:   week ? Number(week[2]) : null
+    };
+  });
+
+const d = parse(document.getElementById('raw').textContent);
+const labels = d.map(r => r.label);
+const first = d[0], last = d[d.length - 1];
+
+document.getElementById('period').textContent =
+  `Период ${first.range.split('-')[0].trim()} — ${last.label}, ${d.length} срезов. Источник: data-kp.txt`;
+
+/* ---------- 2. Общие настройки графиков ---------- */
+
+const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const C = {ink:css('--ink'), slate:css('--slate'), line:css('--line'),
+           steel:css('--steel'), sage:css('--sage'), plum:css('--plum'), amber:css('--amber')};
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+Chart.defaults.font.size = 12;
+Chart.defaults.color = C.slate;
+Chart.defaults.animation = reduced ? false : {duration: 650};
+Chart.defaults.maintainAspectRatio = false;
+
+const axis = (extra = {}) => Object.assign({
+  grid: {color: C.line, drawTicks: false},
+  border: {color: C.line},
+  ticks: {padding: 8}
+}, extra);
+
+const tooltip = {
+  backgroundColor: C.ink, padding: 10, cornerRadius: 2,
+  displayColors: true, boxWidth: 8, boxHeight: 8, boxPadding: 4,
+  titleFont: {weight: '600'}
+};
+
+const legend = {position: 'bottom', align: 'start',
+  labels: {boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle', padding: 16}};
+
+/* ---------- 3. КП: накопленный итог + за неделю ---------- */
+
+new Chart(document.getElementById('kp'), {
+  data: {
+    labels,
+    datasets: [
+      {
+        type: 'line', label: 'Всего КП за период', yAxisID: 'y',
+        data: d.map(r => r.kpTotal),
+        borderColor: C.steel, borderWidth: 2, tension: .25,
+        pointRadius: 3, pointBackgroundColor: '#FCFDFE', pointBorderWidth: 2,
+        fill: {target: 'origin', above: 'rgba(31,106,140,.07)'}, order: 0
+      },
+      {
+        type: 'bar', label: 'Создано за неделю', yAxisID: 'y1',
+        data: d.map(r => r.kpWeek),
+        backgroundColor: 'rgba(85,103,124,.28)', borderRadius: 1,
+        barPercentage: .55, order: 1
+      }
+    ]
+  },
+  options: {
+    interaction: {mode: 'index', intersect: false},
+    scales: {
+      x: axis(),
+      y:  axis({position: 'left', title: {display: true, text: 'накопленный итог'},
+                suggestedMin: 700}),
+      y1: axis({position: 'right', grid: {display: false},
+                title: {display: true, text: 'за неделю'}, beginAtZero: true})
+    },
+    plugins: {legend, tooltip}
+  }
+});
+
+/* ---------- 4. Салоны ---------- */
+
+new Chart(document.getElementById('salons'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      {label: 'С Эларбис', data: d.map(r => r.elarbis),
+       borderColor: C.sage, borderWidth: 2, tension: .25, pointRadius: 2.5,
+       pointBackgroundColor: C.sage},
+      {label: 'Оформляют КП', data: d.map(r => r.withKp),
+       borderColor: C.slate, borderWidth: 2, borderDash: [5, 4], tension: .25,
+       pointRadius: 2.5, pointBackgroundColor: C.slate},
+      {label: 'Фабричные регистрации', data: d.map(r => r.factory),
+       borderColor: C.line, borderWidth: 1.5, tension: 0, pointRadius: 0}
+    ]
+  },
+  options: {
+    interaction: {mode: 'index', intersect: false},
+    scales: {x: axis(), y: axis({beginAtZero: true, suggestedMax: 80})},
+    plugins: {legend, tooltip}
+  }
+});
+
+/* ---------- 5. Регистрации в ЛК ---------- */
+
+new Chart(document.getElementById('lk'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Регистрации в ЛК', data: d.map(r => r.lk),
+      borderColor: C.plum, borderWidth: 2, stepped: 'after',
+      pointRadius: 2.5, pointBackgroundColor: C.plum,
+      fill: {target: 'origin', above: 'rgba(107,78,113,.07)'}
+    }]
+  },
+  options: {
+    interaction: {mode: 'index', intersect: false},
+    scales: {x: axis(), y: axis({suggestedMin: 125})},
+    plugins: {legend: {display: false}, tooltip}
+  }
+});
+
+/* ---------- 6. Доля салонов, оформляющих КП ---------- */
+
+new Chart(document.getElementById('share'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Доля салонов с КП',
+      data: d.map(r => +(r.withKp / r.elarbis * 100).toFixed(1)),
+      backgroundColor: 'rgba(31,106,140,.65)', borderRadius: 1, barPercentage: .6
+    }]
+  },
+  options: {
+    scales: {
+      x: axis(),
+      y: axis({beginAtZero: true, max: 70, ticks: {padding: 8, callback: v => v + '%'}})
+    },
+    plugins: {
+      legend: {display: false},
+      tooltip: Object.assign({}, tooltip, {
+        callbacks: {label: c => `${c.parsed.y}% (${d[c.dataIndex].withKp} из ${d[c.dataIndex].elarbis})`}
+      })
+    }
+  }
+});
+
+/* ---------- 7. Запас ключей — сетка точек ---------- */
+
+const maxKeys = Math.max(...d.map(r => r.keys));
+document.getElementById('keys').innerHTML = d.map(r => `
+  <div class="keycol" title="${r.label}: ${r.keys} шт.">
+    <em>${r.label}</em>
+    ${Array.from({length: maxKeys}, (_, i) =>
+      `<span class="dot${i < r.keys ? ' on' : ''}"></span>`).join('')}
+  </div>`).join('');
+
+/* ---------- 8. Ключевые числа ---------- */
+
+const delta = (a, b) => {
+  const v = a - b;
+  const cls = v > 0 ? 'up' : v < 0 ? 'down' : '';
+  return `<i class="${cls}">${v > 0 ? '+' : ''}${v} с ${first.label}</i>`;
+};
+
+document.getElementById('strip').innerHTML = [
+  ['Всего КП', last.kpTotal, delta(last.kpTotal, first.kpTotal)],
+  ['Салонов с Эларбис', last.elarbis, delta(last.elarbis, first.elarbis)],
+  ['Оформляют КП', last.withKp, delta(last.withKp, first.withKp)],
+  ['Регистраций в ЛК', last.lk, delta(last.lk, first.lk)],
+  ['Свободных ключей', last.keys, delta(last.keys, first.keys)]
+].map(([t, v, dd]) => `<div class="stat"><b>${v}</b><span>${t}</span>${dd}</div>`).join('');
+
+/* ---------- 9. Таблица ---------- */
+
+const cols = [
+  ['Неделя', r => r.range],
+  ['Эларбис', r => r.elarbis],
+  ['Оформляют КП', r => r.withKp],
+  ['Фабричные', r => r.factory],
+  ['Ключи', r => r.keys],
+  ['ЛК', r => r.lk],
+  ['КП всего', r => r.kpTotal],
+  ['КП за неделю', r => r.kpWeek]
+];
+document.getElementById('table').innerHTML +=
+  `<thead><tr>${cols.map(c => `<th>${c[0]}</th>`).join('')}</tr></thead>` +
+  `<tbody>${d.map(r => `<tr>${cols.map(c => `<td>${c[1](r)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+
+/* ---------- 10. Сверка недельных значений с приростом итога ---------- */
+
+const gaps = d.slice(1)
+  .map((r, i) => ({week: r.range, diff: (r.kpTotal - d[i].kpTotal) - r.kpWeek}))
+  .filter(x => x.diff !== 0);
+
+document.getElementById('note').innerHTML = gaps.length
+  ? `<strong>Сверка.</strong> В ${gaps.length} срезах недельное число КП не сходится с приростом
+     накопленного итога: ${gaps.map(g => `${g.week} — расхождение ${g.diff > 0 ? '+' : ''}${g.diff}`)
+     .join('; ')}. В остальных неделях значения совпадают.`
+  : '<strong>Сверка.</strong> Недельные значения сходятся с приростом накопленного итога во всех срезах.';
+</script>
+</body>
+</html>
