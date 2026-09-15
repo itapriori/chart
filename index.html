@@ -95,7 +95,7 @@
 <div class="wrap">
 
   <header>
-    <h1>Дилерская сеть: 14 недель</h1>
+    <h1 id="title">Дилерская сеть</h1>
     <p id="period"></p>
   </header>
 
@@ -323,6 +323,19 @@
 
 1) всего за весь период - 1179
 2) За прошлую неделю (01.09 - 08.09) - 19
+
+#
+
+1) Салонов с Эларбис - 75 штук
+2) Салонов с оформлением Коммерческих предложений - 42 штук
+3) Фабричных регистраций - 17 штук
+4) Свободных ключей - 1 штука
+5) Количество регистраций в ЛК по дилерам - 156 штук
+
+Сколько создано кп:
+
+1) всего за весь период - 1184
+2) За прошлую неделю (08.09 - 15.09) - 5
 </script>
 
 <script>
@@ -357,6 +370,16 @@ const parse = (text) => text
 const d = parse(document.getElementById('raw').textContent);
 const labels = d.map(r => r.label);
 const first = d[0], last = d[d.length - 1];
+
+const plural = (n, forms) => {
+  const n10 = n % 10, n100 = n % 100;
+  if (n10 === 1 && n100 !== 11) return forms[0];
+  if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return forms[1];
+  return forms[2];
+};
+
+document.getElementById('title').textContent =
+  `Дилерская сеть: ${d.length} ${plural(d.length, ['неделя', 'недели', 'недель'])}`;
 
 document.getElementById('period').textContent =
   `Период ${first.range.split('-')[0].trim()} — ${last.label}, ${d.length} срезов. Источник: data-kp.txt`;
